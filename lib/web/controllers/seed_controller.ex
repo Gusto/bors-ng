@@ -115,7 +115,9 @@ defmodule BorsNG.SeedController do
              perms: %{admin: true, push: true, pull: true}}
         ],
         files: %{ # Files by commit
-          "00000001" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]/ }}}})
+          "00000001" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]/ },
+          "staging.tmp" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]/ }, # bors looks here for some reason?
+        }}})
   end
 
   defp initialize_installation do
