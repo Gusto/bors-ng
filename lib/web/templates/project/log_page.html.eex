@@ -7,11 +7,16 @@
       <td><%= component %></td>
       <td><pre><code><%= crash %></code></pre></td>
     </tr>
-  <% %BorsNG.Database.Batch{id: id, state: state, patches: patches, updated_at: updated_at} -> %>
+  <% %BorsNG.Database.Batch{id: id, state: state, patches: patches, statuses: statuses, updated_at: updated_at} -> %>
     <tr role=row id="batch-<%= id %>" data-id="<%= id %>" data-datetime="<%= updated_at %>">
       <td><%= htmlify_naive_datetime(updated_at) %></td>
       <td>Batch</td>
       <td><%= stringify_state(state) %></td>
+      <td>
+      <%= for status <- statuses do %>
+        <a href="<%= status.url %>"><%= status.identifier %></a>
+      <% end %>
+      </td>
       <td>
       <%= for patch <- patches do %>
         <a href="<%= Confex.fetch_env!(:bors, :html_github_root) %>/<%= @project.name %>/pull/<%= patch.pr_xref %>">#<%= patch.pr_xref %></a>

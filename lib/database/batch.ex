@@ -11,6 +11,7 @@ defmodule BorsNG.Database.Batch do
 
   use BorsNG.Database.Model
   alias BorsNG.Database.BatchState
+  alias BorsNG.Database.Status
 
   schema "batches" do
     belongs_to :project, Project
@@ -21,6 +22,7 @@ defmodule BorsNG.Database.Batch do
     field :timeout_at, :integer
     field :priority, :integer, default: 0
     has_many :patches, LinkPatchBatch
+    has_many :statuses, Status
     timestamps()
   end
 

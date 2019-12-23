@@ -22,6 +22,7 @@ defmodule BorsNG.ProjectController do
   alias BorsNG.Database.Crash
   alias BorsNG.Database.Patch
   alias BorsNG.Database.User
+  alias BorsNG.Database.Status
   alias BorsNG.GitHub
   alias BorsNG.Worker.Syncer
 
@@ -131,7 +132,7 @@ defmodule BorsNG.ProjectController do
     |> Repo.all()
     |> Enum.map(fn
       %Batch{id: id} = batch ->
-        %{batch | patches: Repo.all(Patch.all_for_batch(id))}
+        %{batch | patches: Repo.all(Patch.all_for_batch(id)), statuses: Repo.all(Status.all_for_batch(id))}
     end)
   end
 
@@ -142,7 +143,7 @@ defmodule BorsNG.ProjectController do
     |> Repo.all()
     |> Enum.map(fn
       %Batch{id: id} = batch ->
-        %{batch | patches: Repo.all(Patch.all_for_batch(id))}
+        %{batch | patches: Repo.all(Patch.all_for_batch(id)), statuses: Repo.all(Status.all_for_batch(id))}
     end)
   end
 
