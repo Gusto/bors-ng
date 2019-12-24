@@ -43,8 +43,15 @@ defmodule BorsNG.Router do
     pipe_through :browser_login
 
     get "/", PageController, :index
-    get "/seed", SeedController, :index
-    get "/seed/run_command_bors_merge", SeedController, :make_bors_merge_comment
+  end
+
+  scope "/seed", BorsNG do
+    pipe_through :browser_page
+    pipe_through :browser_session
+
+    get "/", SeedController, :index
+    get "/run_command_bors_merge", SeedController, :make_bors_merge_comment
+    get "/run_circle_ci_finished", SeedController, :make_circleci_finished
   end
 
   scope "/repositories", BorsNG do

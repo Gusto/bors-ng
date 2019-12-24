@@ -21,6 +21,12 @@ defmodule BorsNG.SeedController do
     render conn, "seed.html", something: []
   end
 
+  def make_circleci_finished(conn, _params) do
+    do_webhook_circleci_finished
+
+    render conn, "seed.html", something: []
+  end
+
   defp seed_example do
 
     ServerMock.put_state(%{
@@ -86,7 +92,9 @@ defmodule BorsNG.SeedController do
           }}
       ] },
       {{:installation, 91}, 14} => %{
-        branches: %{},
+        branches: %{
+          "master" => "00000000"
+        },
         commits: %{},
         comments: %{1 => ["bors merge"]},
         pulls: %{
@@ -115,8 +123,8 @@ defmodule BorsNG.SeedController do
              perms: %{admin: true, push: true, pull: true}}
         ],
         files: %{ # Files by commit
-          "00000001" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]/ },
-          "staging.tmp" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]/ }, # bors looks here for some reason?
+          "00000001" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]\nstatus = [ "circleci" ]/ },
+          "staging.tmp" => %{"bors.toml" => ~s/required_approvals = 0\npr_status = [ "circleci" ]\nstatus = [ "circleci" ]/ }, # bors looks here for some reason?
         }}})
   end
 
@@ -162,5 +170,18 @@ defmodule BorsNG.SeedController do
             "avatar_url" => "data:image/svg+xml,<svg></svg>"},
           "merged_at" => nil},
         "action" => "created" }}, "github", "pull_request_review_comment")
+  end
+
+  defp do_webhook_circleci_finished do
+    BorsNG.WebhookController.do_webhook(%{
+      body_params: %{
+        "installation" => %{ "id" => 91 },
+        "repository" => %{ "id" => 14 },
+        "commit" => %{
+          "sha" => "0000000000000001"
+        },
+        "context" => "circleci",
+        "target_url" => "https://circleci.com",
+        "state" => "success"}}, "github", "status")
   end
 end
