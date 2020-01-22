@@ -525,10 +525,23 @@ defmodule BorsNG.Worker.Batcher do
       {:ok, x} -> {:ok, x}
     end
 
-    {:ok, _} = push_with_retry(
+    push_result = push_with_retry(
       repo_conn,
       batch.commit,
       batch.into_branch)
+
+    case push_result do
+      {:error, :push, 422, raw_error_body} ->
+        if String.contains?(raw_error_body, "Update is not a fast forward") do
+          # alternative workflow here
+          IO.puts "DETECTED AN ATTEMPTED NON-FAST FORWARD PUSH TO TARGET BRANCH"
+          {:ok, _} = push_result
+        else
+          {:ok, _} = push_result
+        end
+      _ ->
+        {:ok, _} = push_result
+    end
 
     patches = batch.id
     |> Patch.all_for_batch()
