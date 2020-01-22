@@ -147,15 +147,17 @@ defmodule BorsNG.GitHub.Server do
   end
 
   def do_handle_call(:push, repo_conn, {sha, to}) do
-    repo_conn
-    |> patch!("git/refs/heads/#{to}", Poison.encode!(%{sha: sha}))
-    |> case do
-      %{body: _, status: 200} ->
-        {:ok, sha}
-      %{body: body, status: status} ->
-        IO.inspect({:error, :push, body})
-        {:error, :push, status, body}
-    end
+#    repo_conn
+#    |> patch!("git/refs/heads/#{to}", Poison.encode!(%{sha: sha}))
+#    |> case do
+#      %{body: _, status: 200} ->
+#        {:ok, sha}
+#      %{body: body, status: status} ->
+#        IO.inspect({:error, :push, body})
+#        {:error, :push, status, body}
+#    end
+
+    {:error, :push, 422, "{\"message\":\"Update is not a fast forward\",\"documentation_url\":\"https://developer.github.com/v3/git/refs/#update-a-reference\"}"}
   end
 
   def do_handle_call(:get_branch, repo_conn, {branch}) do
