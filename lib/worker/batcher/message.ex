@@ -86,6 +86,7 @@ defmodule BorsNG.Worker.Batcher.Message do
       :succeeded -> "Build succeeded"
       :failed -> "Build failed"
       :retrying -> "Build failed (retrying...)"
+      :push_failed -> "Build succeeded but push failed (retrying...)"
     end
     Enum.reduce(statuses, "# #{msg}", &gen_status_link/2)
   end

@@ -502,11 +502,14 @@ defmodule BorsNG.Worker.Batcher do
     status = Batcher.State.summary_database_statuses(statuses)
     now = DateTime.to_unix(DateTime.utc_now(), :second)
     if status != :running do
+      # need to change status (could go from :ok to :error if non-ff push)
+      status = complete_batch(status, batch, statuses)
+
+      # status can change so send_status should come after complete_batch
       batch.project
       |> get_repo_conn()
       |> send_status(batch, status)
       Project.ping!(batch.project_id)
-      complete_batch(status, batch, statuses)
     end
     batch
     |> Batch.changeset(%{state: status, last_polled: now})
@@ -516,7 +519,7 @@ defmodule BorsNG.Worker.Batcher do
     end
   end
 
-  @spec complete_batch(Status.state, Batch.t, [Status.t]) :: :ok
+  @spec complete_batch(Status.state, Batch.t, [Status.t]) :: Status.state
   defp complete_batch(:ok, batch, statuses) do
     project = batch.project
     repo_conn = get_repo_conn(project)
@@ -525,24 +528,55 @@ defmodule BorsNG.Worker.Batcher do
       {:ok, x} -> {:ok, x}
     end
 
-    {:ok, _} = push_with_retry(
+    push_result = push_with_retry(
       repo_conn,
       batch.commit,
       batch.into_branch)
+
+    push_success = case push_result do
+      {:error, :push, 422, raw_error_content} ->
+        if String.contains?(raw_error_content, "Update is not a fast forward") do
+          false
+        else
+          {:ok, _} = push_result
+          true
+        end
+      _ ->
+        {:ok, _} = push_result
+        true
+    end
 
     patches = batch.id
     |> Patch.all_for_batch()
     |> Repo.all()
 
-    send_message(repo_conn, patches, {:succeeded, statuses})
+    case push_success do
+      true ->
+        send_message(repo_conn, patches, {:succeeded, statuses})
 
-    if toml.use_squash_merge do
-      Enum.each(patches, fn patch ->
-        send_message(repo_conn, [patch], {:merged, :squashed, batch.into_branch})
-        pr = GitHub.get_pr!(repo_conn, patch.pr_xref)
-        pr = %BorsNG.GitHub.Pr{pr | state: :closed, title: "[Merged by Bors] - #{pr.title}"}
-        pr = GitHub.update_pr!(repo_conn, pr)
-      end)
+        if toml.use_squash_merge do
+          Enum.each(patches, fn patch ->
+            send_message(repo_conn, [patch], {:merged, :squashed, batch.into_branch})
+            pr = GitHub.get_pr!(repo_conn, patch.pr_xref)
+            pr = %BorsNG.GitHub.Pr{pr | state: :closed, title: "[Merged by Bors] - #{pr.title}"}
+            pr = GitHub.update_pr!(repo_conn, pr)
+          end)
+        end
+
+        :ok
+
+      false ->
+        # retry the complete batch (no bisect required as build passed all statuses)
+        patch_links = batch.id
+        |> LinkPatchBatch.from_batch()
+        |> Repo.all()
+        reattempting_batch = Divider.clone_batch(patch_links, project.id, batch.into_branch)
+        poll_after_delay(project)
+
+        # send appropriate message to failed patches
+        send_message(repo_conn, patches, {:push_failed, statuses})
+
+        :error
     end
   end
 
@@ -559,6 +593,8 @@ defmodule BorsNG.Worker.Batcher do
       poll_after_delay(project)
     end
     send_message(repo_conn, patches, {state, erred})
+
+    :error
   end
 
   # A delay has been observed between Bors sending the Status change
