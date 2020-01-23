@@ -9,9 +9,13 @@
 1. `mix ecto.create`
 1. `mix ecto.migrate`
 
+#### Recreate DB
+
+1. `mix do ecto.drop, ecto.create, ecto.migrate`
+
 ## 1. Launch REPL
 
-`./scripts/repl`
+`./scripts/repl` or `iex -S mix phx.server`
 
 ## 2. Imports
 
