@@ -168,7 +168,8 @@ defmodule BorsNG.SeedController do
             "id" => 6,
             "login" => "bors-fanboi",
             "avatar_url" => "data:image/svg+xml,<svg></svg>"},
-          "merged_at" => nil},
+          "merged_at" => nil,
+          "mergeable" => true},
         "action" => "created" }}, "github", "pull_request_review_comment")
   end
 
