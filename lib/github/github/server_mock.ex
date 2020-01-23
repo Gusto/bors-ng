@@ -212,16 +212,20 @@ defmodule BorsNG.GitHub.ServerMock do
   end
 
   def do_handle_call(:push, repo_conn, {sha, to}, state) do
-    with {:ok, repo} <- Map.fetch(state, repo_conn),
-         {:ok, branches} <- Map.fetch(repo, :branches) do
-      branches = %{branches | to => sha}
-      repo = %{repo | branches: branches}
-      state = %{state | repo_conn => repo}
-      {{:ok, sha}, state}
-    end
-    |> case do
-      {{:ok, _}, _} = res -> res
-      _ -> {{:error, :push}, state}
+    if sha == "0000000000000001" and to == "master" do
+      {{:error, :push, 422, "{\"message\":\"Update is not a fast forward\",\"documentation_url\":\"https://developer.github.com/v3/git/refs/#update-a-reference\"}"}, state}
+    else
+      with {:ok, repo} <- Map.fetch(state, repo_conn),
+           {:ok, branches} <- Map.fetch(repo, :branches) do
+        branches = %{branches | to => sha}
+        repo = %{repo | branches: branches}
+        state = %{state | repo_conn => repo}
+        {{:ok, sha}, state}
+      end
+      |> case do
+        {{:ok, _}, _} = res -> res
+        _ -> {{:error, :push}, state}
+      end
     end
   end
 
