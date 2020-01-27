@@ -1563,6 +1563,94 @@ defmodule BorsNG.Worker.BatcherTest do
     assert Enum.count(retried.patches) == 2
   end
 
+  test "push to master branch, other 442 errors result in a crash", %{proj: proj} do
+    GitHub.ServerMock.put_state(%{
+      {{:installation, 91}, 14} => %{
+        branches: %{"master" => "ini", "staging" => "", "staging.tmp" => ""},
+        commits: %{},
+        comments: %{1 => []},
+        statuses: %{},
+        files: %{"staging.tmp" => %{"bors.toml" => ~s/status = [ "ci" ]/}},
+        pr_commits: %{
+          1 => [
+            %GitHub.Commit{sha: "1234", author_name: "a", author_email: "e"}],
+        },
+        # Force any push to master to fail
+        push_errors: %{
+          "master" => %{error_code: 422, response: "{\"message\":\"Some other error\"}"}
+        }
+      }})
+
+    patch = %Patch{
+              project_id: proj.id,
+              pr_xref: 1,
+              commit: "N",
+              into_branch: "master"}
+            |> Repo.insert!()
+
+    Batcher.handle_cast({:reviewed, patch.id, "rvr"}, proj.id)
+
+    # Force initiate a poll to start the batch running
+    batch = Repo.get_by! Batch, project_id: proj.id
+    batch
+    |> Batch.changeset(%{last_polled: 0})
+    |> Repo.update!()
+    Batcher.handle_info({:poll, :once}, proj.id)
+
+    # Confirm the batch is running
+    batch = Repo.get_by! Batch, project_id: proj.id
+    assert batch.state == :running
+
+    # and then trigger the push
+    assert_raise MatchError, fn ->
+      Batcher.do_handle_cast({:status, {"iniN", "ci", :ok, nil}}, proj.id)
+    end
+  end
+
+  test "push to master branch, other error codes result in a crash", %{proj: proj} do
+    GitHub.ServerMock.put_state(%{
+      {{:installation, 91}, 14} => %{
+        branches: %{"master" => "ini", "staging" => "", "staging.tmp" => ""},
+        commits: %{},
+        comments: %{1 => []},
+        statuses: %{},
+        files: %{"staging.tmp" => %{"bors.toml" => ~s/status = [ "ci" ]/}},
+        pr_commits: %{
+          1 => [
+            %GitHub.Commit{sha: "1234", author_name: "a", author_email: "e"}],
+        },
+        # Force any push to master to fail
+        push_errors: %{
+          "master" => %{error_code: 500, response: "{\"message\":\"Some other error\"}"}
+        }
+      }})
+
+    patch = %Patch{
+              project_id: proj.id,
+              pr_xref: 1,
+              commit: "N",
+              into_branch: "master"}
+            |> Repo.insert!()
+
+    Batcher.handle_cast({:reviewed, patch.id, "rvr"}, proj.id)
+
+    # Force initiate a poll to start the batch running
+    batch = Repo.get_by! Batch, project_id: proj.id
+    batch
+    |> Batch.changeset(%{last_polled: 0})
+    |> Repo.update!()
+    Batcher.handle_info({:poll, :once}, proj.id)
+
+    # Confirm the batch is running
+    batch = Repo.get_by! Batch, project_id: proj.id
+    assert batch.state == :running
+
+    # and then trigger the push
+    assert_raise MatchError, fn ->
+      Batcher.do_handle_cast({:status, {"iniN", "ci", :ok, nil}}, proj.id)
+    end
+  end
+
   test "full runthrough and continue", %{proj: proj} do
     # Projects are created with a "waiting" state
     GitHub.ServerMock.put_state(%{
