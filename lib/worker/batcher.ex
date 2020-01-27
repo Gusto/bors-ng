@@ -578,7 +578,7 @@ defmodule BorsNG.Worker.Batcher do
         poll_after_delay(project)
 
         # send appropriate message to failed patches
-        send_message(repo_conn, patches, {:push_failed, statuses})
+        send_message(repo_conn, patches, {:push_failed_non_ff, batch.into_branch})
 
         :error
     end
