@@ -876,14 +876,10 @@ defmodule BorsNG.Worker.Batcher do
 
   defp send_message(repo_conn, patches, message) do
     body = Batcher.Message.generate_message(message)
-    case body do
-      nil -> :ok
-      _ ->
-        Enum.each(patches, &GitHub.post_comment!(
-          repo_conn,
-          &1.pr_xref,
-          body))
-    end
+    Enum.each(patches, &GitHub.post_comment!(
+      repo_conn,
+      &1.pr_xref,
+      body))
   end
 
   defp send_status(
